@@ -175,6 +175,8 @@
 
   /* ---------- Estimate calculator ---------- */
   .est{margin:26px 0 8px;background:#fff;border-radius:24px;box-shadow:var(--shadow);border:1px solid #e5eff4;padding:22px 18px 0;scroll-margin-top:16px}
+  .est.opening{animation:est-in .45s cubic-bezier(.2,.8,.2,1)}
+  @keyframes est-in{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
   .est-head{text-align:center;margin-bottom:6px}
   .est-kicker{font-size:11px;letter-spacing:.22em;font-weight:700;color:var(--blue);text-transform:uppercase}
   .est-title{margin:6px 0 4px;font-size:24px;font-weight:900;letter-spacing:-.01em;line-height:1.1}
@@ -365,7 +367,7 @@
   <!-- CTAs -->
   <div class="cta-wrap">
 
-    <a class="btn btn-primary" href="#estimate">
+    <a class="btn btn-primary" href="#estimate" id="open-estimate" aria-controls="estimate" aria-expanded="false">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11.01"/><line x1="12" y1="11" x2="12" y2="11.01"/><line x1="16" y1="11" x2="16" y2="11.01"/><line x1="8" y1="15" x2="8" y2="15.01"/><line x1="12" y1="15" x2="12" y2="15.01"/><line x1="16" y1="15" x2="16" y2="18"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
       <span>
         <span class="small">Get your price in 1 minute</span>
@@ -417,7 +419,7 @@
   </div>
 
   <!-- Estimate calculator -->
-  <section class="est" id="estimate" aria-labelledby="est-title">
+  <section class="est" id="estimate" aria-labelledby="est-title" hidden>
     <div class="est-head">
       <div class="est-kicker">Free · No commitment</div>
       <h2 class="est-title" id="est-title">Instant Cleaning Estimate</h2>
@@ -587,7 +589,9 @@
     const form = document.getElementById('est-form');
     const $ = id => document.getElementById(id);
     const money = n => '$' + Math.round(n).toLocaleString('en-US');
-    const state = { service: 'standard', freq: 'once', beds: 3, baths: 2, extras: {} };
+    const DEFAULTS = { service: 'standard', freq: 'once', beds: 3, baths: 2 };
+    const state = { ...DEFAULTS, extras: {} };
+    const renders = [];
 
     const minus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
     const plus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
@@ -606,6 +610,7 @@
       dec.addEventListener('click', () => { set(Math.max(min, +(get() - step).toFixed(1))); render(); update(); });
       inc.addEventListener('click', () => { set(Math.min(max, +(get() + step).toFixed(1))); render(); update(); });
       render();
+      renders.push(render);
     }
 
     // Service segmented control
@@ -788,7 +793,36 @@
       window.location.href = `https://wa.me/${PRICING.whatsapp}?text=${encodeURIComponent(lines.join('\n'))}`;
     });
 
-    update();
+    // Restore a clean, closed calculator (fresh load or back-navigation from WhatsApp)
+    function resetEstimate() {
+      form.reset();
+      Object.assign(state, DEFAULTS);
+      PRICING.extras.forEach(x => { state.extras[x.id] = { on: false, qty: x.qty ? x.qty.def : 1 }; });
+      form.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+      $('form-err').classList.remove('show');
+      $('svc-' + DEFAULTS.service).checked = true;
+      renders.forEach(r => r());
+      update();
+      $('estimate').hidden = true;
+      $('open-estimate').setAttribute('aria-expanded', 'false');
+      if (location.hash === '#estimate') history.replaceState(null, '', location.pathname + location.search);
+    }
+
+    $('open-estimate').addEventListener('click', e => {
+      e.preventDefault();
+      const section = $('estimate');
+      if (section.hidden) {
+        section.hidden = false;
+        section.classList.remove('opening');
+        void section.offsetWidth;
+        section.classList.add('opening');
+        $('open-estimate').setAttribute('aria-expanded', 'true');
+      }
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    window.addEventListener('pageshow', resetEstimate);
+    resetEstimate();
   })();
 
   // ---- Ripple on buttons ----
