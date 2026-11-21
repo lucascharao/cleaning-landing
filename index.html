@@ -208,6 +208,8 @@
   .field input,.field textarea{width:100%;font:inherit;font-size:16px;font-weight:600;color:var(--navy);padding:12px 14px;border-radius:14px;border:2px solid #e1ecf2;background:#f7fbfd;outline:none;transition:border-color .15s}
   .field textarea{resize:vertical;min-height:72px}
   .field input:focus,.field textarea:focus{border-color:var(--blue)}
+  .field input::placeholder,.field textarea::placeholder{color:#a9b8c9;font-weight:400;opacity:1}
+  .field input[type=date].is-empty{color:#a9b8c9;font-weight:400}
   .field input[aria-invalid=true]{border-color:#d64545;background:#fff6f6}
   .field .err{display:none;color:#c03030;font-size:12px;font-weight:600;margin-top:4px}
   .field input[aria-invalid=true] ~ .err{display:block}
@@ -736,7 +738,10 @@
     $('zip').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5); });
 
     const today = new Date();
-    $('date').min = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    // Show the empty date like a placeholder until a date is picked
+    const syncDate = () => $('date').classList.toggle('is-empty', !$('date').value);
+    ['input', 'change'].forEach(ev => $('date').addEventListener(ev, syncDate));
+    $('date').min =new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
     const rules = {
       name:   v => v.trim().length >= 2,
@@ -802,6 +807,7 @@
       $('form-err').classList.remove('show');
       $('svc-' + DEFAULTS.service).checked = true;
       renders.forEach(r => r());
+      syncDate();
       update();
       $('estimate').hidden = true;
       $('open-estimate').setAttribute('aria-expanded', 'false');
